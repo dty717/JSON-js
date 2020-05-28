@@ -81,7 +81,13 @@ if (typeof JSON.decycle !== "function") {
 // If the value is an object or array, look to see if we have already
 // encountered it. If so, return a {"$ref":PATH} object. This uses an
 // ES6 WeakMap.
-
+                var className=value.constructor.name;
+                
+                if((className!="Object")&&(className!="Boolean")&&(className!="Date")&&
+                    (className!="Number")&&(className!="RegExp")&&(className!="String")&&
+                    (className!="Set")&&(className!="Array")&&(className!="Map")){
+                    value.$_constructorName=className;
+                }
                 old_path = objects.get(value);
                 if (old_path !== undefined) {
                     return {$ref: old_path};
@@ -149,33 +155,97 @@ if (typeof JSON.retrocycle !== "function") {
 // properties. When it finds one that has a value that is a path, then it
 // replaces the $ref object with a reference to the value that is found by
 // the path.
+            var className=value.$_constructorName;
+            var newValue;
+            if((className!=undefined)&&(className!="Object")&&(className!="Boolean")&&(className!="Date")&&
+                (className!="Number")&&(className!="RegExp")&&(className!="String")&&
+                (className!="Set")&&(className!="Array")&&(className!="Map")){
+                try {
+                    var newValue=new window[className]()
+                    delete value.$_constructorName;
+                    Object.keys(value).forEach(function (name) {
+                        newValue[name]=value[name];
+                    });
+                } catch (e) {
+                    console.log(e)
+                }
+            }
 
             if (value && typeof value === "object") {
-                if (Array.isArray(value)) {
-                    value.forEach(function (element, i) {
+                if (Array.isArray(value)) {                    
+                    for (var i = 0; i < value.length; i++) {
+                        var element=value[i];
+                        var newElement
+                        if(element){
+                            var className=element.$_constructorName;
+                            if((className!=undefined)&&(className!="Object")&&(className!="Boolean")&&(className!="Date")&&
+                                (className!="Number")&&(className!="RegExp")&&(className!="String")&&
+                                (className!="Set")&&(className!="Array")&&(className!="Map")){
+                                try {
+                                    newElement=new window[className]()
+                                    delete element.$_constructorName;
+                                    Object.keys(element).forEach(function (name) {
+                                        newElement[name]=element[name];
+                                    });
+                                } catch (e) {
+                                    console.log(e)
+                                }
+                            }
+                        }
                         if (typeof element === "object" && element !== null) {
                             var path = element.$ref;
                             if (typeof path === "string" && px.test(path)) {
                                 value[i] = eval(path);
                             } else {
-                                rez(element);
+                                if(newElement){
+                                    value[i]=rez(newElement);
+                                }else{
+                                    value[i]=rez(element);
+                                }
                             }
                         }
-                    });
+                    }
+
                 } else {
                     Object.keys(value).forEach(function (name) {
-                        var item = value[name];
-                        if (typeof item === "object" && item !== null) {
-                            var path = item.$ref;
+                        var code = value[name];
+                        var newCode;
+                        if(code){
+                            var className=code.$_constructorName;
+                            if((className!=undefined)&&(className!="Object")&&(className!="Boolean")&&(className!="Date")&&
+                                (className!="Number")&&(className!="RegExp")&&(className!="String")&&
+                                (className!="Set")&&(className!="Array")&&(className!="Map")){
+                                try {
+                                    newCode=new window[className]()
+                                    delete code.$_constructorName;
+                                    Object.keys(code).forEach(function (name) {
+                                        newCode[name]=code[name];
+                                    });
+                                } catch (e) {
+                                    console.log(e)
+                                } 
+                            }
+                        }
+                        if (typeof code === "object" && code !== null) {
+                            var path = code.$ref;
                             if (typeof path === "string" && px.test(path)) {
                                 value[name] = eval(path);
                             } else {
-                                rez(item);
+                                if(newCode){
+                                    value[name]=rez(newCode);
+                                }else{
+                                    value[name]=rez(code);
+                                }
+
                             }
                         }
                     });
                 }
             }
+            if(newValue){
+                return newValue;
+            }
+            return value;
         }($));
         return $;
     };
